@@ -3,12 +3,14 @@
 import logging
 import math
 import time
-from datetime import date, timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import httpx
 
 from .models import HistoryPoint, Rate, Stats
 
+KYIV = ZoneInfo("Europe/Kyiv")
 RATES_URL = "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange"
 HISTORY_URL = "https://bank.gov.ua/NBU_Exchange/exchange_site"
 USER_AGENT = "tk42-nbu-rates/1.0 (student lab project)"
@@ -60,7 +62,10 @@ async def get_rate(code: str) -> Rate:
 
 async def get_history(code: str, days: int) -> tuple[str, list[HistoryPoint]]:
     """Курс однієї валюти за останні days днів (у порядку дат)."""
-    end = date.today()
+    # Дата за київським часом (сервер працює в UTC). НБУ публікує курс на завтра
+    # вже вдень, тому беремо і завтрашній день, щоб історія закінчувалась тим самим
+    # курсом, що й таблиця «Курси на сьогодні».
+    end = datetime.now(KYIV).date() + timedelta(days=1)
     start = end - timedelta(days=days)
     params = {"start": start.strftime("%Y%m%d"), "end": end.strftime("%Y%m%d"),
               "valcode": code.lower(), "sort": "exchangedate", "order": "asc", "json": ""}
